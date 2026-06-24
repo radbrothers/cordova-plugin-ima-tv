@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
+        id="cordova-plugin-ima-tv"
+        version="1.0.0">
+
+    <name>IMA SDK for Android TV</name>
+    <description>Cordova plugin for Google IMA SDK interstitial ads on Android TV</description>
+    <license>Apache 2.0</license>
+    <keywords>cordova, android, tv, ima, ads, interstitial, google</keywords>
+
+    <js-module src="www/IMAPlugin.js" name="IMAPlugin">
+        <clobbers target="IMAPlugin" />
+    </js-module>
+
+    <platform name="android">
+        <config-file target="res/xml/config.xml" parent="/*">
+            <feature name="IMASDKPlugin">
+                <param name="android-package" value="com.example.imaplugin.IMASDKPlugin" />
+                <param name="onload" value="true" />
+            </feature>
+        </config-file>
+
+        <config-file target="AndroidManifest.xml" parent="/manifest">
+            <uses-permission android:name="android.permission.INTERNET" />
+            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+        </config-file>
+
+        <!-- Gradle file with all IMA dependencies + desugaring -->
+        <framework src="src/android/ima-dependencies.gradle" custom="true" type="gradleReference" />
+
+        <source-file src="src/android/IMASDKPlugin.java"
+                     target-dir="src/com/example/imaplugin" />
+        <source-file src="src/android/VideoAdPlayerAdapter.java"
+                     target-dir="src/com/example/imaplugin" />
+        <source-file src="src/android/res/layout/ad_overlay.xml"
+                     target-dir="res/layout" />
+    </platform>
+</plugin>
