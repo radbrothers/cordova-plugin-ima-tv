@@ -22,23 +22,6 @@ cordova plugin add cordova-plugin-ima-tv
 | Android minSdk | 23 |
 | IMA SDK | 3.39.0 (подключается автоматически через Gradle) |
 
-### Десугаризация (обязательно)
-
-IMA SDK 3.37+ требует library desugaring. Добавьте в `build.gradle` приложения:
-
-```groovy
-android {
-    compileOptions {
-        coreLibraryDesugaringEnabled = true
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-}
-dependencies {
-    coreLibraryDesugaring('com.android.tools:desugar_jdk_libs:2.1.5')
-}
-```
-
 ---
 
 ## Использование
