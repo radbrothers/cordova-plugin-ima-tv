@@ -32,6 +32,7 @@ import org.json.JSONObject;
  *
  * JS API:
  *   IMAPlugin.initialize(adTagUrl, callbacks)
+ *   IMAPlugin.preloadAd()
  *   IMAPlugin.showAd(callbacks)
  *   IMAPlugin.destroy()
  */
@@ -41,6 +42,7 @@ public class IMASDKPlugin extends CordovaPlugin {
 
     // JS-callable actions
     private static final String ACTION_INITIALIZE = "initialize";
+    private static final String ACTION_PRELOAD_AD = "preloadAd";
     private static final String ACTION_SHOW_AD    = "showAd";
     private static final String ACTION_DESTROY    = "destroy";
 
@@ -49,6 +51,9 @@ public class IMASDKPlugin extends CordovaPlugin {
     private ImaSdkSettings  sdkSettings;
     private AdsLoader       adsLoader;
     private AdsManager      adsManager;
+
+    // Preload state: requestAds() was called but showAd() not yet
+    private boolean isAdPreloaded = false;
 
     // Ad player
     private VideoView            adVideoView;
@@ -72,6 +77,10 @@ public class IMASDKPlugin extends CordovaPlugin {
             case ACTION_INITIALIZE:
                 adTagUrl = args.getString(0);
                 initialize(callbackContext);
+                return true;
+
+            case ACTION_PRELOAD_AD:
+                preloadAd(callbackContext);
                 return true;
 
             case ACTION_SHOW_AD:
@@ -176,9 +185,13 @@ public class IMASDKPlugin extends CordovaPlugin {
 
                 switch (type) {
                     case LOADED:
-                        // Start ad playback
-                        adsManager.start();
-                        showAdContainer();
+                        // If preloaded — wait for showAd(); if showAd() called directly — start now
+                        if (isAdPreloaded) {
+                            sendEvent("adPreloaded", null);
+                        } else {
+                            adsManager.start();
+                            showAdContainer();
+                        }
                         break;
 
                     case STARTED:
@@ -250,6 +263,42 @@ public class IMASDKPlugin extends CordovaPlugin {
         });
     }
 
+    // ── preloadAd ─────────────────────────────────────────────────────────────
+
+    private void preloadAd(CallbackContext callbackContext) {
+        if (adsLoader == null) {
+            callbackContext.error("Plugin not initialized. Call initialize() first.");
+            return;
+        }
+
+        cordova.getActivity().runOnUiThread(() -> {
+            try {
+                // Clean up any previous manager
+                if (adsManager != null) {
+                    adsManager.destroy();
+                    adsManager = null;
+                }
+
+                isAdPreloaded = true;
+
+                AdsRequest request = sdkFactory.createAdsRequest();
+                request.setAdTagUrl(adTagUrl);
+                request.setContentProgressProvider(() -> VideoProgressUpdate.VIDEO_TIME_NOT_READY);
+
+                // requestAds() starts loading in the background.
+                // When LOADED fires, we send "adPreloaded" to JS and wait for showAd().
+                adsLoader.requestAds(request);
+
+                callbackContext.success();
+
+            } catch (Exception e) {
+                Log.e(TAG, "preloadAd error", e);
+                isAdPreloaded = false;
+                callbackContext.error("preloadAd failed: " + e.getMessage());
+            }
+        });
+    }
+
     // ── showAd ────────────────────────────────────────────────────────────────
 
     private void showAd(CallbackContext callbackContext) {
@@ -260,20 +309,26 @@ public class IMASDKPlugin extends CordovaPlugin {
 
         cordova.getActivity().runOnUiThread(() -> {
             try {
-                // If a previous manager exists, clean up first
-                if (adsManager != null) {
-                    adsManager.destroy();
-                    adsManager = null;
+                if (isAdPreloaded && adsManager != null) {
+                    // Ad already loaded in background — start immediately
+                    isAdPreloaded = false;
+                    showAdContainer();
+                    adsManager.start();
+                } else {
+                    // No preload — request and play in one step
+                    isAdPreloaded = false;
+                    if (adsManager != null) {
+                        adsManager.destroy();
+                        adsManager = null;
+                    }
+
+                    AdsRequest request = sdkFactory.createAdsRequest();
+                    request.setAdTagUrl(adTagUrl);
+                    request.setContentProgressProvider(() -> VideoProgressUpdate.VIDEO_TIME_NOT_READY);
+
+                    adsLoader.requestAds(request);
                 }
 
-                AdsRequest request = sdkFactory.createAdsRequest();
-                request.setAdTagUrl(adTagUrl);
-                // Interstitial: no content video, so progress is always not-ready
-                request.setContentProgressProvider(() -> VideoProgressUpdate.VIDEO_TIME_NOT_READY);
-
-                adsLoader.requestAds(request);
-
-                // Acknowledge JS immediately; events will fire via eventCallbackContext
                 PluginResult result = new PluginResult(PluginResult.Status.NO_RESULT);
                 result.setKeepCallback(true);
                 callbackContext.sendPluginResult(result);
@@ -289,6 +344,7 @@ public class IMASDKPlugin extends CordovaPlugin {
 
     private void destroyAds() {
         cordova.getActivity().runOnUiThread(() -> {
+            isAdPreloaded = false;
             if (adsManager != null) {
                 adsManager.destroy();
                 adsManager = null;
