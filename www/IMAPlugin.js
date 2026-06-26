@@ -42,12 +42,15 @@ var IMAPlugin = {
                     if (payload.event === 'error') {
                         if (onError) onError(payload.data || 'Unknown IMA error');
                     } else {
-                        if (onEvent) onEvent(payload.event, payload.data || null);
+                        if (onEvent) onEvent(payload.event, payload.data || undefined);
                     }
                 }
             },
             function (err) {
-                if (onError) onError(err);
+                var message = (err && typeof err === 'object')
+                    ? (err.message || JSON.stringify(err))
+                    : (err || 'Unknown IMA error');
+                if (onError) onError(message);
             },
             'IMASDKPlugin',
             'initialize',
