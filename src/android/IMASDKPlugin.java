@@ -343,13 +343,21 @@ public class IMASDKPlugin extends CordovaPlugin {
     // ── destroy ───────────────────────────────────────────────────────────────
 
     private void destroyAds() {
+        destroyAds(false);
+    }
+
+    private void destroyAds(boolean releaseAdapter) {
         cordova.getActivity().runOnUiThread(() -> {
             isAdPreloaded = false;
             if (adsManager != null) {
                 adsManager.destroy();
                 adsManager = null;
             }
-            if (adPlayerAdapter != null) {
+            // release() clears VideoAdPlayer callbacks registered by the IMA SDK.
+            // Only call it on full plugin shutdown — not between ad requests,
+            // otherwise the next requestAds() loses its player connection and
+            // returns "No Ads VAST response after one or more Wrappers".
+            if (releaseAdapter && adPlayerAdapter != null) {
                 adPlayerAdapter.release();
             }
             hideAdContainer();
@@ -404,7 +412,7 @@ public class IMASDKPlugin extends CordovaPlugin {
 
     @Override
     public void onDestroy() {
-        destroyAds();
+        destroyAds(true); // full shutdown — release adapter callbacks too
         super.onDestroy();
     }
 
