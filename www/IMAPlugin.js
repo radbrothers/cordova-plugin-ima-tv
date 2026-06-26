@@ -9,6 +9,7 @@
  *
  * Events fired to onEvent(eventName):
  *   "initialized"        — SDK ready
+ *   "adPreloaded"        — ad loaded in background, ready to show instantly
  *   "adStarted"          — ad playback began
  *   "adCompleted"        — ad finished (also fires after skip)
  *   "adSkipped"          — user skipped the ad
@@ -59,7 +60,30 @@ var IMAPlugin = {
     },
 
     /**
+     * Preload an ad in the background before it needs to be shown.
+     * Fires "adPreloaded" event when the ad is ready.
+     * Call showAd() afterwards to display it instantly.
+     *
+     * @param {Function} [onError]  Optional error callback
+     */
+    preloadAd: function (onError) {
+        exec(
+            null,
+            function (err) {
+                var message = (err && typeof err === 'object')
+                    ? (err.message || JSON.stringify(err))
+                    : (err || 'Unknown IMA error');
+                if (onError) onError(message);
+            },
+            'IMASDKPlugin',
+            'preloadAd',
+            []
+        );
+    },
+
+    /**
      * Request and display an interstitial ad.
+     * If preloadAd() was called before, the ad starts instantly.
      * Events are delivered to the callbacks registered in initialize().
      *
      * @param {Function} [onError]  Optional per-call error callback
