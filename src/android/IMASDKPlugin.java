@@ -259,6 +259,7 @@ public class IMASDKPlugin extends CordovaPlugin {
             AdsRenderingSettings renderingSettings =
                     ImaSdkFactory.getInstance().createAdsRenderingSettings();
             renderingSettings.setFocusSkipButtonWhenAvailable(true);
+            renderingSettings.setEnablePreloading(true);
             adsManager.init(renderingSettings);
         });
     }
